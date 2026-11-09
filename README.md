@@ -51,27 +51,36 @@ touches nothing in your installation.
 
 ## Applying the patches
 
-Back up first. Patch files are standard unified diffs rooted at your Joomla
-directory, so either tool works:
+Back up first. Then use the wrapper — it checks that every patch applies before
+changing anything, and verifies afterwards that each one actually landed:
 
 ```sh
-# with git
-cd /path/to/your/joomla
-git apply -p1 /path/to/j3-sec/patches/*.patch
+bin/apply.sh /path/to/your/joomla              # Linux, macOS, WSL, Git Bash
+bin/apply.sh /path/to/your/joomla --check      # dry run, changes nothing
 
-# or with GNU patch
-cd /path/to/your/joomla
-for p in /path/to/j3-sec/patches/*.patch; do patch -p1 -i "$p"; done
+bin\apply.ps1 C:\path\to\your\joomla           # Windows PowerShell
+bin\apply.ps1 C:\path\to\your\joomla -Check
 ```
 
-Both are verified to apply cleanly to a stock 3.10.12 tree, and re-applying is
-refused rather than silently corrupting a file. There is a wrapper that checks
-first and refuses a partial application:
+To apply by hand, the patch files are standard unified diffs rooted at your
+Joomla directory:
 
 ```sh
-bin/apply.sh /path/to/your/joomla        # Linux, macOS, WSL, Git Bash
-bin\apply.ps1 C:\path\to\your\joomla     # Windows PowerShell
+cd /path/to/your/joomla
+for p in /path/to/j3-sec/patches/*.patch; do patch -p1 -F0 -i "$p"; done
 ```
+
+`-F0` matters. GNU patch defaults to a fuzz factor of 2, which lets context
+match at a shifted offset — so running the same patch twice can insert the same
+code twice. With zero fuzz, context must match exactly or the patch is refused.
+
+> **Do not use `git apply` for this.** Inside a git repository, `git apply`
+> resolves paths relative to the **repository root** rather than your working
+> directory, and silently ignores paths outside it. If your Joomla install sits
+> anywhere inside a git work tree — a versioned site, or a checkout one level up
+> — `git apply` exits 0 having changed nothing at all. The wrapper scripts
+> handle this (they prefer GNU patch, and pin `GIT_WORK_TREE` when they must use
+> git), which is the main reason to use them rather than patching by hand.
 
 If your installation has modified core files — and many long-lived Joomla 3 sites
 have — a hunk may fail. The patches are small and the advisories describe each change
