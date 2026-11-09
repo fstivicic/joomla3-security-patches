@@ -1,2 +1,5 @@
 .work/
 *.tar.gz
+
+# Scratch: downloaded tarball and extracted trees. tools/make_patches.py
+# recreates this on demand, so it is safe to delete at any time.
