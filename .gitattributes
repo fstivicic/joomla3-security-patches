@@ -1,0 +1,9 @@
+# Patches must never be line-ending converted, or they stop applying
+# to the LF source files they target.
+*.patch -text
+
+# Shell scripts need LF even on Windows checkouts; PowerShell wants CRLF.
+*.sh  text eol=lf
+*.ps1 text eol=crlf
+*.php text eol=lf
+*.md  text
