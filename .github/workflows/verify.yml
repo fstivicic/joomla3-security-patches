@@ -59,6 +59,13 @@ jobs:
       - name: Probe after patching (expect clean)
         run: php tests/probe.php work/site
 
+      # The probe only uses hostile input, so a patch could pass it and still
+      # break every page on the site. This asserts ordinary Joomla behaviour --
+      # pre-escaped URLs not double-encoded, core onclick handlers intact,
+      # benign uploads still allowed, real feed URLs still valid.
+      - name: Regression suite (does ordinary Joomla still work)
+        run: php tests/regression.php work/site
+
       - name: Lint every patched file
         run: |
           for f in \

@@ -7,13 +7,30 @@ Long Term Support programme that kept backporting security fixes to the 3.x bran
 that programme ended on 17 February 2025. Joomla's own usage statistics have put 3.10.x
 at over a third of all reporting installations.
 
-So there is a large population of sites running an unpatched CMS, and since February 2025
-there has been no patch source for them at all. I set out to build a free one.
+So there is a large population of sites running an unpatched CMS. I set out to build a
+free, standalone patch set for the advisories published since eLTS closed.
 
 The interesting part was not the patching. It was discovering that one of the
 vulnerabilities I'd written off as "not applicable" was applicable after all — and that
 the reason I'd written it off was a published version range that was, for my purposes,
 wrong.
+
+> **Credit where it is due, and a correction to an earlier draft of this post.**
+> I am not the first person to reach this conclusion about CVE-2026-92222. Phil Taylor's
+> [mySites.guru](https://mysites.guru/blog/joomla-3-security-fixes-verified-on-3-10-12/)
+> published a Joomla 3 patch round in **October 2026** — a month before this — that
+> already included CVE-2026-92222 alongside CVE-2026-90907 and others, each reproduced
+> on a stock 3.10.12 install. An earlier version of this post said Joomla 3 had "no
+> patch source at all" since February 2025. That was wrong: the public
+> [Joomla3.10.999](https://github.com/PhilETaylor/Joomla3.10.999) repo collects fixes up
+> to the end of eLTS, and mySites.guru has continued backporting since, inside their
+> commercial product.
+>
+> I found this while fact-checking my own claims before contacting anyone about the
+> work — which is the only reason you are reading an accurate version. The method below
+> still holds, and the lesson about version ranges is if anything strengthened by
+> someone else having independently had to learn it. But the discovery is not mine, and
+> presenting it as novel would have been false.
 
 ## The first pass
 
@@ -196,7 +213,8 @@ They also under-claim, and that direction is the dangerous one, because it produ
 advisory doesn't apply to you.
 
 The only reliable procedure I know is unglamorous: find the actual fix, read it, and look
-for the same construct in your own tree. For this advisory that took about an hour,
+for the same construct in your own tree. And then check whether somebody has already done
+it, which is the step I did last and should have done first. For this advisory that took about an hour,
 mostly spent filtering a 268-file diff. It is the difference between a High-severity local
 file read being patched and being filed under "doesn't affect us".
 

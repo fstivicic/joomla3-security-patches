@@ -11,12 +11,32 @@ vulnerabilities before patching, applies the set, and confirms the probe comes b
 clean — on PHP 7.4, 8.0, 8.2 and 8.3. The badge above is that job.
 
 Joomla 3 reached end of life on **17 August 2023**. The Joomla project's own paid
-Extended Long Term Support programme, which backported security fixes to the 3.x
-branch, **ended on 17 February 2025**. Since then, vulnerabilities disclosed against
-the 3.x line have had no patch source at all.
+Extended Long Term Support (eLTS) programme, which backported security fixes to the
+3.x branch, **ended on 17 February 2025**.
 
-This repository publishes backports for those vulnerabilities, derived from the
-public fixes in current Joomla and in the Joomla Framework packages.
+This repository publishes backports for vulnerabilities disclosed since then, derived
+from the public fixes in current Joomla and in the Joomla Framework packages.
+
+### Prior art — read this before assuming this repo is the only option
+
+It is not, and you should know the landscape before trusting anyone's patches,
+including mine.
+
+- **[PhilETaylor/Joomla3.10.999](https://github.com/PhilETaylor/Joomla3.10.999)** is a
+  public GPL-2.0 collection of Joomla 3.10 plus community hot fixes, with branches
+  mirroring the eLTS releases up to `3.10.20-elts`. Its last commit is **17 February
+  2025** — the day eLTS ended — so it does not cover anything disclosed afterwards.
+- **[mySites.guru](https://mysites.guru/)** (Phil Taylor) maintains an ongoing Joomla 3
+  patch tool, free to its subscribers, which as of October 2026 covered 85 files
+  including 2026 CVEs. It is delivered inside their commercial monitoring product
+  rather than as a standalone download, and they state they reproduce each issue on a
+  stock 3.10.12 install before including it. **If you already use mySites.guru, use
+  their tool — it has broader coverage than this repository.**
+
+What this repo adds is a *standalone, publicly downloadable* patch set with its own
+vulnerability probe and CI, for people who are not mySites.guru customers and want
+something they can read, verify and apply themselves. It is narrower in coverage and
+makes no claim to be first.
 
 > **Not affiliated with the Joomla project or Open Source Matters, Inc.** Joomla is a
 > trademark of Open Source Matters, Inc. This is an independent, unofficial effort and
