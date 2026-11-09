@@ -159,6 +159,41 @@ set.
 - **Third-party extensions are out of scope.** On a typical Joomla 3 site they are a
   larger risk surface than core.
 
+## Who maintains this, and how to get help
+
+Maintained by one person. That is the main risk of relying on it, and it is stated here
+rather than buried.
+
+**Something wrong with a patch?** [Open an issue](../../issues). No email needed, and a
+public report gets fixed faster.
+
+**Stuck on an EOL platform and want someone to look at it properly?**
+<!--
+  TODO before making this repo public — pick one and delete the rest:
+    1. A contact email. Consider an alias rather than a personal address; this page
+       will be scraped.
+    2. A link to your site or studio page.
+    3. GitHub issues only — delete this whole paragraph.
+  A published patch set with no way to reach the author is a dead end for the one
+  reader who actually wanted to hire someone.
+-->
+I do paid work on exactly this problem: software that still runs the business but is out
+of support, undocumented, or dependent on one person's knowledge. The usual starting
+point is a short fixed-fee audit that produces a written risk assessment and costed
+options, with automated tests demonstrating that behaviour is preserved before and after
+any change. Contact: `[TODO]`
+
+This repository is the unpaid half of that, and it stays unpaid. Nothing here is a
+teaser for a paid tier, there is no "pro" version, and the patches will not start
+expiring. If that ever changes it will be announced loudly and the existing patches will
+stay under the GPL they were published under.
+
+## Related work
+
+- [`writeups/version-ranges-lie.md`](writeups/version-ranges-lie.md) — how JSEC-0005 was
+  found: an advisory listed Joomla 3 as unaffected, and the release diff showed otherwise.
+  Also the general lesson about trusting affected-version ranges on EOL software.
+
 ## Licence
 
 The patches are derivative works of Joomla and are published under the
