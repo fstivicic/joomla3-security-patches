@@ -20,7 +20,7 @@ public fixes in current Joomla and in the Joomla Framework packages.
 
 ## What is patched
 
-Four advisories, all disclosed after the ELTS programme closed, all verified against
+Five advisories, all disclosed after the ELTS programme closed, all verified against
 the 3.10.12 source rather than taken on trust from the published version ranges.
 
 | ID | CVE | Issue | Severity | Status |
@@ -29,11 +29,20 @@ the 3.10.12 source rather than taken on trust from the published version ranges.
 | [JSEC-0002](advisories/JSEC-0002.md) | CVE-2026-90907 | Unauthorised account creation via `profile.save` | Medium | Patched |
 | [JSEC-0003](advisories/JSEC-0003.md) | CVE-2026-73373 | Unrestricted upload of `.shtml` and other executables | High | Patched |
 | [JSEC-0004](advisories/JSEC-0004.md) | CVE-2026-92231 | XSS filter bypass via HTML5 entity decode mismatch | High | Patched |
+| [JSEC-0005](advisories/JSEC-0005.md) | CVE-2026-92222 | SSRF and local file read via unrestricted feed URL schemes | High | Patched |
 
-Two further advisories were investigated and are **not** patched here. See
-[advisories/NOT-APPLICABLE.md](advisories/NOT-APPLICABLE.md) for the reasoning —
-one does not apply to the 3.x codebase as described, and one has a disputed
-version range that needs confirmation before any patch is written.
+**JSEC-0005 is not in the advisory's published version range**, and is the clearest
+argument for checking code rather than version tables. Joomla lists CVE-2026-92222 as
+affecting 4.0.0 and later — but Joomla does not assess EOL branches, so that bound
+describes the scope of their review, not the extent of the bug. Three of the four
+fields they fixed exist in 3.10 in identical form, the validator that would constrain
+them already supports the fix, and the dangerous schemes are demonstrably accepted.
+
+One further advisory was investigated and is **not** patched here: CVE-2026-92232 does
+not apply to the 3.x codebase as described, because the data-URI cleanup it describes
+bypassing was never in Joomla 3. See
+[advisories/NOT-APPLICABLE.md](advisories/NOT-APPLICABLE.md), which also records the
+policy on when a gap is left open rather than filled with unreviewed code.
 
 ## Verifying before you trust it
 
@@ -44,10 +53,16 @@ for each known attack vector, whether a given Joomla root is vulnerable or fixed
 php tests/probe.php /path/to/your/joomla
 ```
 
-On an unpatched 3.10.12 tree it reports **16 vulnerable vectors**. After applying the
+On an unpatched 3.10.12 tree it reports **19 vulnerable vectors**. After applying the
 patch set it reports **0**, with control cases (a benign URL, a legitimate `.jpg`
-upload) still behaving correctly. The probe needs no database and no web server, and
-touches nothing in your installation.
+upload, an ordinary `https://` feed URL) still behaving correctly. The probe needs no
+database and no web server, and touches nothing in your installation.
+
+It also prints a short **Notes** section for observations the patch set deliberately
+does not change — currently `UrlRule`'s permissive default scheme list, which is the
+reason JSEC-0005 is needed but which cannot be tightened globally without breaking
+every other url-validated field in core and in third-party extensions. Notes do not
+count toward the vulnerable total and do not affect the exit code.
 
 ## Applying the patches
 
@@ -89,10 +104,13 @@ in full, so applying by hand is realistic. Do not use `--force` or `-R`.
 ### Files touched
 
 ```
-libraries/src/HTML/HTMLHelper.php                     JSEC-0001
-components/com_users/controllers/profile.php          JSEC-0002
-libraries/src/Filter/InputFilter.php                  JSEC-0003
-libraries/vendor/joomla/filter/src/InputFilter.php    JSEC-0004
+libraries/src/HTML/HTMLHelper.php                                    JSEC-0001
+components/com_users/controllers/profile.php                         JSEC-0002
+libraries/src/Filter/InputFilter.php                                 JSEC-0003
+libraries/vendor/joomla/filter/src/InputFilter.php                   JSEC-0004
+administrator/components/com_newsfeeds/models/forms/newsfeed.xml     JSEC-0005
+modules/mod_feed/mod_feed.xml                                        JSEC-0005
+administrator/modules/mod_feed/mod_feed.xml                          JSEC-0005
 ```
 
 `libraries/vendor/` is a Composer-vendored dependency. Nothing in a normal Joomla 3
@@ -115,12 +133,23 @@ set.
   passing pre-built markup through the `$url` argument — which was never supported —
   will see it escaped. The link *text* is still not escaped, matching upstream, since
   callers legitimately pass markup there.
+- **JSEC-0005** rejects feed URLs whose scheme is not `http` or `https`. A site
+  deliberately pointing `mod_feed` or a news feed at an `ftp://` source will have to
+  change it; saving such a value now fails validation.
 
 ## Honest limits
 
 - **Not a complete audit.** This covers advisories published since the ELTS shutdown
   that I verified against the 3.10 source. Joomla 3.10.12 certainly contains other
   unpatched issues, including any that were only ever fixed in paid ELTS releases.
+  JSEC-0005 is a warning about method as much as a fix: it was found only by reading
+  the release diff, because the advisory's version range said 3.x was unaffected.
+  Other advisories dismissed on the same basis may deserve the same treatment.
+- **JSEC-0005 does not stop SSRF over HTTP.** Restricting schemes removes `file://`,
+  `gopher://` and friends, but `http://169.254.169.254/` remains a valid feed URL and
+  Joomla will still fetch it. That matches upstream. Internal-address blocking belongs
+  in egress firewall rules, not a form validation rule. It is also input-time only, so
+  audit values already in your database — the advisory has the SQL.
 - **JSEC-0004's end-to-end impact is unproven.** The unit-level filter bypass is
   real and reproducible, but in both filter configurations I tested, `InputFilter::clean()`
   dropped the hostile anchor through unrelated attribute handling. The patch is

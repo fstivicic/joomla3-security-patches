@@ -1,8 +1,14 @@
 # Investigated and not patched
 
-Two advisories from the same disclosure rounds are **not** in the patch set. Both
-decisions are recorded here with their reasoning, because "we looked and decided no"
-is useful information and an unexplained gap is not.
+One advisory from the same disclosure rounds is **not** in the patch set. The decision
+is recorded here with its reasoning, because "we looked and decided no" is useful
+information and an unexplained gap is not.
+
+> **Resolved since the first revision:** CVE-2026-92222 (SSRF in core extensions) was
+> listed here as unresolved while the published version ranges disagreed about Joomla 3.
+> It has been investigated and **does affect 3.10.12**, despite the advisory's stated
+> 4.0.0 lower bound — that bound reflects which branches Joomla still assesses, not the
+> extent of the bug. It is now patched as [JSEC-0005](JSEC-0005.md).
 
 ---
 
@@ -54,35 +60,20 @@ one instance of it.
 
 ---
 
-## CVE-2026-92222 — SSRF vectors in core extensions
+## Policy: going beyond upstream
 
-| | |
-|---|---|
-| **Upstream advisory** | [20260909](https://developer.joomla.org/security-centre/1089-20260909-core-ssrf-vectors-in-various-core-extensions.html) · [GHSA-47wr-m8j6-xmcq](https://github.com/advisories/GHSA-47wr-m8j6-xmcq) |
-| **Claimed affected** | **Disputed — see below** |
-| **Severity** | High (upstream rating) |
-| **Verdict** | **Unresolved. Needs investigation before any patch.** |
+This patch set backports **reviewed upstream fixes**. It does not invent new ones.
 
-This is the one genuine loose end, and the highest-severity item in the set.
+That rule has teeth, and JSEC-0005 is where it bites. Upstream's scheme restriction is
+input-time only, so a hostile feed URL already in the database is still fetched. A
+fetch-time scheme check in `FeedFactory::getFeed()` would close that, and is only a few
+lines — but it is unreviewed code written against an EOL branch by one person, in the
+exact function that every feed on the site flows through. A regression there breaks feeds
+silently, because the call site suppresses errors with `@`.
 
-The two authoritative sources disagree about whether Joomla 3 is affected:
+So it is documented in the advisory, with SQL to audit existing values, rather than
+patched. If someone wants it, it belongs in an `optional/` directory with its own tests
+and a loud warning, not in the default set.
 
-| Source | Affected range |
-|---|---|
-| Joomla security centre listing | **3.0.0** – 5.4.8, 6.0.0 – 6.1.3 |
-| GitHub advisory GHSA-47wr-m8j6-xmcq | **4.0.0** – 5.4.8, 6.0.0 – 6.1.3 |
-
-If the security centre is right, Joomla 3.10 carries an unpatched High-severity SSRF.
-If the GitHub advisory is right, it does not apply at all.
-
-The advisory text — *"URLs used for serverside requests were improperly validated"* —
-does not name a method or file, and "various core extensions" could cover several
-subsystems whose 3.x and 4.x implementations differ substantially. Resolving it means
-identifying the specific upstream fix commits, mapping each to its 3.x equivalent (if
-one exists), and confirming the validation gap is present.
-
-**No patch is offered on a guess.** Writing an SSRF fix against an unidentified code
-path is how a patch set acquires a regression that is worse than the vulnerability.
-
-This is the top item on the list for the next round, and help identifying the
-upstream commits would be genuinely useful — open an issue if you have them.
+The same reasoning keeps data-URI filtering out of JSEC-0004 and the permissive
+`UrlRule` default out of JSEC-0005.

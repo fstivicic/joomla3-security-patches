@@ -56,20 +56,36 @@ if (!class_exists('JLoader', false)) {
 // implementation itself, so everything here is require_once.
 require_once $root . '/libraries/vendor/joomla/string/src/phputf8/utf8.php';
 require_once $root . '/libraries/vendor/joomla/string/src/phputf8/ord.php';
+require_once $root . '/libraries/vendor/joomla/string/src/phputf8/utils/validation.php';
 require_once $root . '/libraries/vendor/joomla/string/src/StringHelper.php';
 require $root . '/libraries/vendor/joomla/filter/src/InputFilter.php';
 require $root . '/libraries/vendor/joomla/utilities/src/ArrayHelper.php';
 require $root . '/libraries/src/HTML/HTMLHelper.php';
+require $root . '/libraries/vendor/joomla/uri/src/UriHelper.php';
+require $root . '/libraries/src/Form/FormRule.php';
+require $root . '/libraries/src/Form/Rule/UrlRule.php';
 
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\Filter\InputFilter;
 
 $results = array();
+$notes   = array();
 
 function report($id, $vulnerable, $detail = '')
 {
 	global $results;
 	$results[] = array($id, $vulnerable ? 'VULNERABLE' : 'FIXED', $detail);
+}
+
+/**
+ * Record an observation that this patch set does not change and that therefore
+ * must not count toward the vulnerable total — background evidence for an
+ * advisory rather than a pass/fail criterion.
+ */
+function note($id, $detail = '')
+{
+	global $notes;
+	$notes[] = array($id, $detail);
 }
 
 // ---------------------------------------------------------------------------
@@ -210,6 +226,89 @@ report(
 );
 
 // ---------------------------------------------------------------------------
+// CVE-2026-92222 - SSRF via unrestricted URL schemes on feed fields
+//
+// Two layers are checked. First, that UrlRule's permissive default scheme list
+// really does accept dangerous schemes when a field sets no `schemes`
+// attribute. Second, that each feed form field whose value is fetched
+// server-side actually constrains the scheme.
+// ---------------------------------------------------------------------------
+$urlRule = new \Joomla\CMS\Form\Rule\UrlRule();
+
+$dangerousSchemes = array(
+	'file'   => 'file:///etc/passwd',
+	'gopher' => 'gopher://127.0.0.1:6379/_SET%20k%20v',
+	'ldap'   => 'ldap://127.0.0.1/',
+);
+
+/*
+ * These three are recorded as notes, not findings. They describe UrlRule's
+ * permissive default scheme list, which is why constraining the feed fields is
+ * necessary — but the patch set deliberately does not change that default,
+ * because it is shared by every url-validated field in core and in third-party
+ * extensions. They would otherwise report VULNERABLE forever.
+ */
+foreach ($dangerousSchemes as $id => $url) {
+	$unrestricted = new \SimpleXMLElement('<field name="u" required="true" validate="url" />');
+	$accepted     = (bool) $urlRule->test($unrestricted, $url);
+	note(
+		'CVE-2026-92222/urlrule-default-' . $id,
+		($accepted ? 'accepted' : 'rejected') . ' for a field declaring no schemes attribute'
+	);
+}
+
+// Control: the rule must still accept a legitimate feed URL.
+$restricted = new \SimpleXMLElement('<field name="u" required="true" validate="url" schemes="http,https" />');
+report(
+	'CVE-2026-92222/control-https-accepted',
+	!$urlRule->test($restricted, 'https://example.com/feed.xml'),
+	'legitimate feed URL'
+);
+
+// The three 3.10 form fields whose value is fetched server-side by
+// FeedFactory::getFeed(). plg_task_requests is Joomla 4.1+ and has no analogue.
+$feedForms = array(
+	'com_newsfeeds'     => 'administrator/components/com_newsfeeds/models/forms/newsfeed.xml',
+	'mod_feed-site'     => 'modules/mod_feed/mod_feed.xml',
+	'mod_feed-admin'    => 'administrator/modules/mod_feed/mod_feed.xml',
+);
+
+foreach ($feedForms as $id => $rel) {
+	$path = $root . '/' . $rel;
+
+	if (!is_file($path)) {
+		report('CVE-2026-92222/' . $id, false, 'form not present in this install');
+		continue;
+	}
+
+	$xml = @simplexml_load_file($path);
+
+	if ($xml === false) {
+		report('CVE-2026-92222/' . $id, true, 'could not parse ' . $rel);
+		continue;
+	}
+
+	$fields = $xml->xpath('//field[@validate="url"]');
+	$unconstrained = array();
+
+	foreach ((array) $fields as $field) {
+		$schemes = isset($field['schemes']) ? (string) $field['schemes'] : '';
+		$list    = array_filter(array_map('trim', explode(',', strtolower($schemes))));
+		$bad     = array_diff($list, array('http', 'https'));
+
+		if ($schemes === '' || !empty($bad)) {
+			$unconstrained[] = (string) $field['name'] . ($schemes === '' ? ' (no schemes)' : ' (schemes=' . $schemes . ')');
+		}
+	}
+
+	report(
+		'CVE-2026-92222/' . $id,
+		!empty($unconstrained),
+		empty($unconstrained) ? 'scheme-constrained' : implode(', ', $unconstrained)
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Output
 // ---------------------------------------------------------------------------
 $vulnCount = 0;
@@ -223,5 +322,13 @@ foreach ($results as $r) {
 }
 
 printf("\n%d vector(s) VULNERABLE, %d FIXED\n", $vulnCount, count($results) - $vulnCount);
+
+if (!empty($notes)) {
+	print("\nNotes (not changed by this patch set, shown as background):\n");
+
+	foreach ($notes as $n) {
+		printf("  %-42s %s\n", $n[0], $n[1]);
+	}
+}
 
 exit($vulnCount > 0 ? 1 : 0);
