@@ -1,0 +1,125 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: JSEC Patch Set <patches@example.invalid>
+Date: Mon, 9 Nov 2026 08:51:20 +0100
+Subject: [PATCH] JSEC-0004: decode HTML5 entities before scheme check in
+ InputFilter (CVE-2026-92231)
+
+checkAttribute() decoded attribute values with ENT_HTML401 and lowercased them
+*before* decoding. Both choices defeat the javascript: scheme regex:
+
+  * ENT_HTML401 leaves HTML5-only entities such as &NewLine; and &Tab; intact,
+    so `java&Tab;script:` never matched, while a browser collapses the tab and
+    executes it.
+  * Lowercasing first mangles the case-sensitive entity names, turning
+    &NewLine; into the unknown &newline; so it survives decoding untouched.
+
+Decode first with ENT_HTML5, additionally resolve unterminated numeric
+references (`java&#10script:`), then lowercase and strip whitespace and control
+characters before matching.
+
+Backported from joomla-framework/filter. The upstream closure is replaced with
+a named static method, and mb_chr() is guarded with an html_entity_decode()
+fallback, both to keep PHP 5.3/no-mbstring targets working.
+
+Behaviour change: attribute values are now whitespace-stripped before the
+check, so a value that genuinely reads "java script:" is treated as hostile and
+the attribute is dropped. This matches upstream and is considered acceptable.
+
+Advisory: https://developer.joomla.org/security-centre/1095-20260915-core-xss-filter-bypass-in-inputfilter-via-html5-entity-decode-mismatch.html
+---
+ .../vendor/joomla/filter/src/InputFilter.php  | 76 ++++++++++++++++++-
+ 1 file changed, 73 insertions(+), 3 deletions(-)
+
+diff --git a/libraries/vendor/joomla/filter/src/InputFilter.php b/libraries/vendor/joomla/filter/src/InputFilter.php
+index e3e8839..fd498b0 100644
+--- a/libraries/vendor/joomla/filter/src/InputFilter.php
++++ b/libraries/vendor/joomla/filter/src/InputFilter.php
+@@ -320,15 +320,85 @@ class InputFilter
+ 	 */
+ 	public static function checkAttribute($attrSubSet)
+ 	{
+-		$quoteStyle = version_compare(\PHP_VERSION, '5.4', '>=') ? \ENT_QUOTES | \ENT_HTML401 : \ENT_QUOTES;
+-
+ 		$attrSubSet[0] = strtolower($attrSubSet[0]);
+-		$attrSubSet[1] = html_entity_decode(strtolower($attrSubSet[1]), $quoteStyle, 'UTF-8');
++
++		/*
++		 * Decode the value the same way a browser would before looking for a dangerous scheme.
++		 *
++		 * This has to happen BEFORE lowercasing: PHP's entity tables are case sensitive, so
++		 * lowercasing first would turn the HTML5 entity `&NewLine;` into the unknown `&newline;`
++		 * and it would survive decoding untouched.
++		 *
++		 * ENT_HTML5 requires PHP 5.4; on 5.3 we fall back to the default table and rely on the
++		 * numeric-reference pass and whitespace stripping below.
++		 */
++		$quoteStyle = defined('ENT_HTML5') ? \ENT_QUOTES | \ENT_HTML5 : \ENT_QUOTES;
++		$decoded    = html_entity_decode($attrSubSet[1], $quoteStyle, 'UTF-8');
++
++		/*
++		 * html_entity_decode() only resolves numeric character references that are properly
++		 * terminated with a semicolon. Browsers are more forgiving and also consume unterminated
++		 * references such as `java&#10script:`, so resolve those here as well.
++		 */
++		$decoded = preg_replace_callback(
++			'/&#(x[0-9a-f]+|[0-9]+);?/i',
++			array(__CLASS__, 'decodeNumericReference'),
++			$decoded
++		);
++
++		// Now that everything is decoded, normalise the value for the checks below
++		$attrSubSet[1] = strtolower($decoded);
++
++		// Remove common XSS-evasion characters
++		$attrSubSet[1] = str_replace(array("\t", "\n", "\r", " ", "\0", "\v", "\f"), '', $attrSubSet[1]);
+ 
+ 		return (strpos($attrSubSet[1], 'expression') !== false && $attrSubSet[0] === 'style')
+ 			|| preg_match('/(?:(?:java|vb|live)script|behaviour|mocha)(?::|&colon;|&column;)/', $attrSubSet[1]) !== 0;
+ 	}
+ 
++	/**
++	 * Resolve a single numeric character reference, terminated or not, to its UTF-8 character.
++	 *
++	 * Helper for checkAttribute(). Implemented as a named static method rather than the closure
++	 * used upstream so that the 3.10 branch keeps PHP 5.3 compatibility.
++	 *
++	 * @param   array  $matches  Match set from preg_replace_callback().
++	 *
++	 * @return  string
++	 *
++	 * @since   3.10.12-jsec1
++	 */
++	public static function decodeNumericReference($matches)
++	{
++		$reference = $matches[1];
++
++		if ($reference[0] === 'x' || $reference[0] === 'X')
++		{
++			$codepoint = (int) hexdec(substr($reference, 1));
++		}
++		else
++		{
++			$codepoint = (int) $reference;
++		}
++
++		// Ignore anything that is not a scalar Unicode value and keep the raw match instead.
++		// Surrogates (U+D800 - U+DFFF) are excluded as they are not encodable on their own.
++		if ($codepoint > 0x10FFFF || ($codepoint >= 0xD800 && $codepoint <= 0xDFFF))
++		{
++			return $matches[0];
++		}
++
++		// mb_chr() is used over chr() so codepoints above U+00FF are not truncated.
++		if (function_exists('mb_chr'))
++		{
++			return mb_chr($codepoint, 'UTF-8');
++		}
++
++		// Fallback for PHP < 7.2 or builds without mbstring: a terminated numeric reference
++		// is something html_entity_decode() will resolve on its own.
++		return html_entity_decode('&#' . $codepoint . ';', \ENT_QUOTES, 'UTF-8');
++	}
++
+ 	/**
+ 	 * Internal method to iteratively remove all unwanted tags and attributes
+ 	 *

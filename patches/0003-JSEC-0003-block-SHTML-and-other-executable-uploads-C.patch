@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: JSEC Patch Set <patches@example.invalid>
+Date: Mon, 9 Nov 2026 08:51:20 +0100
+Subject: [PATCH] JSEC-0003: block SHTML and other executable uploads
+ (CVE-2026-73373)
+
+The default forbidden extension list omitted server-parsed HTML (.shtml, .shtm,
+.sht, .stm) and classic ASP (.asp, .aspx). On a server configured to execute
+those handlers, an upload passing InputFilter::isSafeFile() could lead to code
+execution.
+
+Replace the list with the full set used upstream as
+InputFilter::FORBIDDEN_FILE_EXTENSIONS in Joomla 5.4.9, which adds asp, aspx,
+php9, sht, shtm, shtml and stm.
+
+Note for integrators: this is deliberately a behaviour change. Sites that
+legitimately accept any of these extensions through the media manager must
+override 'forbidden_extensions' at the call site rather than reverting this
+patch.
+
+Advisory: https://developer.joomla.org/security-centre/1077-20260810-core-unrestricted-uploads-of-shtml-files.html
+---
+ libraries/src/Filter/InputFilter.php | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/libraries/src/Filter/InputFilter.php b/libraries/src/Filter/InputFilter.php
+index 42f89f2..d4eef06 100644
+--- a/libraries/src/Filter/InputFilter.php
++++ b/libraries/src/Filter/InputFilter.php
+@@ -493,8 +493,8 @@ class InputFilter extends BaseInputFilter
+ 
+ 			// Forbidden string in extension (e.g. php matched .php, .xxx.php, .php.xxx and so on)
+ 			'forbidden_extensions'       => array(
+-				'php', 'phps', 'pht', 'phtml', 'php3', 'php4', 'php5', 'php6', 'php7',
+-				'php8', 'phar', 'inc', 'pl', 'cgi', 'fcgi', 'java', 'jar', 'py',
++				'asp', 'aspx', 'cgi', 'fcgi', 'inc', 'jar', 'java', 'phar', 'php', 'php3', 'php4', 'php5', 'php6',
++				'php7', 'php8', 'php9', 'phps', 'pht', 'phtml', 'pl', 'py', 'sht', 'shtm', 'shtml', 'stm',
+ 			),
+ 
+ 			// <?php tag in file contents

@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: JSEC Patch Set <patches@example.invalid>
+Date: Mon, 9 Nov 2026 08:51:19 +0100
+Subject: [PATCH] JSEC-0002: require an authenticated user in profile.save
+ (CVE-2026-90907)
+
+UsersControllerProfile::save() checked the CSRF token but never checked the
+login state. For a guest, $userId is 0, so forcing $requestData['id'] = 0 made
+the profile model treat the submission as a new record and create an account,
+bypassing the site's registration setting.
+
+Add an explicit guest check before any data is read, matching the guard added
+upstream in Joomla 5.4.9.
+
+Advisory: https://developer.joomla.org/security-centre/1082-20260902-core-unauthorized-user-account-creation-via-profile-save-controller.html
+---
+ components/com_users/controllers/profile.php | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/components/com_users/controllers/profile.php b/components/com_users/controllers/profile.php
+index 782d963..87e10bc 100644
+--- a/components/com_users/controllers/profile.php
++++ b/components/com_users/controllers/profile.php
+@@ -97,6 +97,16 @@ class UsersControllerProfile extends UsersController
+ 		$user   = JFactory::getUser();
+ 		$userId = (int) $user->get('id');
+ 
++		// Only allow logged in users. A guest reaching this point would be saved as a
++		// new record because $userId is 0, creating an account without registration.
++		if ($user->get('guest'))
++		{
++			$app->enqueueMessage(JText::_('JERROR_ALERTNOAUTHOR'), 'error');
++			$app->setHeader('status', 403, true);
++
++			return false;
++		}
++
+ 		// Get the user data.
+ 		$requestData = $app->input->post->get('jform', array(), 'array');
+ 
