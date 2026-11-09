@@ -85,6 +85,12 @@ patch set it reports **0**, with control cases (a benign URL, a legitimate `.jpg
 upload, an ordinary `https://` feed URL) still behaving correctly. The probe needs no
 database and no web server, and touches nothing in your installation.
 
+Both suites run against files on disk and never start Joomla. A patch set can pass
+them and still break a running site, so the set was also installed and driven through
+a browser on a real Joomla 3.10.12 / PHP 8.2 / MySQL 8 install — see
+[VERIFICATION.md](VERIFICATION.md) for what was checked and, more importantly, what
+that still does not prove.
+
 It also prints a short **Notes** section for observations the patch set deliberately
 does not change — currently `UrlRule`'s permissive default scheme list, which is the
 reason JSEC-0005 is needed but which cannot be tightened globally without breaking
