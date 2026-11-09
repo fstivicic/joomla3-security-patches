@@ -1,7 +1,14 @@
 # J3-SEC — unofficial security patches for Joomla 3.10
 
+[![verify patch set](https://github.com/fstivicic/joomla3-security-patches/actions/workflows/verify.yml/badge.svg)](https://github.com/fstivicic/joomla3-security-patches/actions/workflows/verify.yml)
+[![licence: GPL-2.0-or-later](https://img.shields.io/badge/licence-GPL--2.0--or--later-blue)](LICENSE.txt)
+
 Free, source-available security patches for **Joomla 3.10.12**, the final release of
 the Joomla 3 series.
+
+Every push and every month, CI fetches a stock 3.10.12, confirms the probe **finds**
+vulnerabilities before patching, applies the set, and confirms the probe comes back
+clean — on PHP 7.4, 8.0, 8.2 and 8.3. The badge above is that job.
 
 Joomla 3 reached end of life on **17 August 2023**. The Joomla project's own paid
 Extended Long Term Support programme, which backported security fixes to the 3.x
