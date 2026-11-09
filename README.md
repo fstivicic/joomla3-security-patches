@@ -168,20 +168,16 @@ rather than buried.
 public report gets fixed faster.
 
 **Stuck on an EOL platform and want someone to look at it properly?**
-<!--
-  TODO before making this repo public — pick one and delete the rest:
-    1. A contact email. Consider an alias rather than a personal address; this page
-       will be scraped.
-    2. A link to your site or studio page.
-    3. GitHub issues only — delete this whole paragraph.
-  A published patch set with no way to reach the author is a dead end for the one
-  reader who actually wanted to hire someone.
--->
+
 I do paid work on exactly this problem: software that still runs the business but is out
 of support, undocumented, or dependent on one person's knowledge. The usual starting
 point is a short fixed-fee audit that produces a written risk assessment and costed
 options, with automated tests demonstrating that behaviour is preserved before and after
-any change. Contact: `[TODO]`
+any change.
+
+To get in touch, [open an issue](../../issues) or use the contact details on
+[my GitHub profile](https://github.com/fstivicic). No email address is printed here on
+purpose — this page gets scraped, and a profile link is something I can change.
 
 This repository is the unpaid half of that, and it stays unpaid. Nothing here is a
 teaser for a paid tier, there is no "pro" version, and the patches will not start
